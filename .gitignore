@@ -1,0 +1,42 @@
+# ModusToolbox ignore everything in the libs/ folder (except *.lib files for compatibility with ModusToolbox # 2.0 tools)
+libs/*
+!libs/*.lib
+ 
+# ModusToolbox default build output folder
+build/
+ 
+# Eclipse workspace/user-specific files/settings/caches
+.metadata/
+.settings/
+ 
+# Vi and Emacs backup files
+*~
+\#*\#
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+ 
+ 
+# Created by git when using merge tools for conflicts
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*.txt
+*_BASE_*.txt
+*_LOCAL_*.txt
+*_REMOTE_*.txt
+ 
+ 
+# macOS Finder incidental files
+.DS_Store
+ 
+ 
+# Windows Explorer incidental files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
