@@ -7,6 +7,10 @@
 #include "task.h"
 #include "usrcmd.h"
 
+#include "bluetoothManager.h"
+#include "cycfg_bt_settings.h"
+#include "bt_platform_cfg_settings.h"
+
 volatile int uxTopUsedPriority ;
 TaskHandle_t blinkTaskHandle;
 
@@ -32,6 +36,11 @@ int main(void)
     __enable_irq();
 
     cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
+
+
+
+    cybt_platform_config_init(&bt_platform_cfg_settings);
+    wiced_bt_stack_init (app_bt_management_callback, &wiced_bt_cfg_settings);
 
     // Stack size in WORDs
     // Idle task = priority 0

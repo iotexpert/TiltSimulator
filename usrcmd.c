@@ -42,6 +42,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "bluetoothManager.h"
 
 static ntshell_t ntshell;
 
@@ -57,6 +58,9 @@ static int usrcmd_pargs(int argc, char **argv);
 static int usrcmd_list(int argc, char **argv);
 #endif
 #endif
+static int usrcmd_print(int argc, char **argv);
+static int usrcmd_set(int argc, char **argv);
+static int usrcmd_update(int argc, char **argv);
 
 typedef struct {
     char *cmd;
@@ -74,6 +78,9 @@ static const cmd_table_t cmdlist[] = {
     { "tasks","print the list of RTOS Tasks", usrcmd_list},
 #endif
 #endif
+    { "print", "Print table", usrcmd_print },
+    { "set", "set num temperature gravity txpower", usrcmd_set },
+    { "update", "update num temperature gravity", usrcmd_update },
 };
 
 
@@ -184,3 +191,46 @@ static int usrcmd_list(int argc,char **argv)
 }
 #endif
 #endif
+
+
+static int usrcmd_print(int argc, char **argv)
+{
+    btm_printTableCmd();
+    return 0;
+}
+
+static int usrcmd_set(int argc, char **argv)
+{
+    int gravity;
+    int temperature;
+    int txPower;
+    int num;
+    if(argc == 5)
+    {
+        sscanf(argv[1],"%d",&num);
+        sscanf(argv[2],"%d",&temperature);
+        sscanf(argv[3],"%d",&gravity);
+        sscanf(argv[4],"%d",&txPower);
+
+        btm_setDataCmd(num,temperature,gravity,txPower);
+    }
+    return 0;
+}
+
+static int usrcmd_update(int argc, char **argv)
+{
+    int gravity;
+    int temperature;
+    int rate;
+    int num;
+    if(argc == 5)
+    {
+        sscanf(argv[1],"%d",&num);
+        sscanf(argv[2],"%d",&rate);
+        sscanf(argv[3],"%d",&temperature);
+        sscanf(argv[4],"%d",&gravity);
+
+        btm_updateDataCmd(num,rate,temperature,gravity);
+    }
+    return 0;
+}
