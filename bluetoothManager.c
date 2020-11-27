@@ -13,9 +13,6 @@
 #include "queue.h"
 #include "btutil.h"
 
-// Update every 1000 ms
-#define BTM_UPDATE_RATE 1000
-
 // Read the queue
 #define BTM_QUEUE_RATE 200
 
@@ -30,15 +27,20 @@
 #define TILT_IBEACON_LEN (TILT_IBEACON_HEADER_LEN + TILT_IBEACON_DATA_LEN)
 
 typedef struct  {
-    char *colorName;
-    int slot;
-    bool dirty;
-    int rate; // rate in ms
-    int tempUpdate;
-    int gravUpdate;
-    uint8_t advData[TILT_IBEACON_HEADER_LEN+ TILT_IBEACON_DATA_LEN];
+    char *colorName;    // The color string
+    int slot;           // Which Bluetooth ADV Slot this Tilt is using
+    bool dirty;         // A flag to tell if there has been a change since the adv was last written
+    int rate;           // rate in ms
+    int tempUpdate;     // The update rate for temperature
+    int gravUpdate;     // The update rate for gravity
+    uint8_t advData[TILT_IBEACON_LEN];
 } tilt_t;
 
+// 02 01 04 = Flags
+// 0x1A 0xFF = Manufacturer specific data
+// 0x4c 0x00 = Apple
+// 0x02 = iBeacon
+// 0x15 = remaining data length
 #define IBEACON_HEADER 0x02,0x01,0x04,0x1A,0xFF,0x4C,0x00,0x02,0x15
 
 static tilt_t tiltDB [] =
@@ -54,7 +56,11 @@ static tilt_t tiltDB [] =
 };
 #define NUM_TILT (sizeof(tiltDB)/sizeof(tilt_t))
 
-static int  btm_active=0;
+#define IBEACON_TEMP_HI (25)
+#define IBEACON_TEMP_LO (26)
+#define IBEACON_GRAV_HI (27)
+#define IBEACON_GRAV_LO (28)
+#define IBEACON_TXPOWER (29)
 
 /*********************************************************************************
 * 
@@ -75,11 +81,24 @@ typedef struct {
     int txPower;
 } btm_cmdMsg_t;
 
-static QueueHandle_t btm_cmdQueue;
+static QueueHandle_t btm_cmdQueue=0;
 static wiced_timer_ext_t btm_processDataTimer;
 
 
-wiced_bt_ble_multi_adv_params_t myParams = {
+/*********************************************************************************
+* 
+* These functions are used to interact with the Bluetooth Advertising Controller
+*
+*********************************************************************************/
+// btm_setAdvPacket
+//
+// This function updates what the advertising packets and the state of the BT controller:
+// It will loop through the table of iBeacons... then if they are in a slot & they are dirty
+// it will move them to the contoller and enable advertisements on that slot
+
+void btm_setAdvPacket()
+{
+    static wiced_bt_ble_multi_adv_params_t myParams = {
     .adv_int_min       = BTM_BLE_ADVERT_INTERVAL_MIN,
     .adv_int_max       = 96,
     .adv_type          = MULTI_ADVERT_NONCONNECTABLE_EVENT,
@@ -90,11 +109,8 @@ wiced_bt_ble_multi_adv_params_t myParams = {
     .peer_addr_type    = BLE_ADDR_PUBLIC,
     .own_bd_addr       = {0},
     .own_addr_type     = BLE_ADDR_PUBLIC,
+    };
 
-};
-
-void btm_setAdvPacket()
-{
     for(int i=0;i<NUM_TILT;i++)
     {
         if(tiltDB[i].slot && tiltDB[i].dirty)
@@ -107,9 +123,19 @@ void btm_setAdvPacket()
     }
 }
 
+/* btm_activate
+*
+* This function will put the tilt in the database entry num
+* into the next available advertising slot
+*
+*/
 void btm_activate(int num)
 {
-    if(tiltDB[num].slot == 0)
+    // Keep track of the number of currently active iBeacons
+    static int  btm_active=0;
+    
+    CY_ASSERT(num<NUM_TILT);
+    if(tiltDB[num].slot == 0) // Make sure that it is not already in a slow
     {
         btm_active += 1;
         tiltDB[num].slot = btm_active;
@@ -117,9 +143,16 @@ void btm_activate(int num)
     }
 }
 
+/*********************************************************************************
+* 
+* This next set of functions is the API to the database
+*
+*********************************************************************************/
+
+
 int btm_getTemperature(int num)
 {
-    return (uint16_t)tiltDB[num].advData[25] << 8 | tiltDB[num].advData[26];
+    return (uint16_t)tiltDB[num].advData[IBEACON_TEMP_HI] << 8 | tiltDB[num].advData[IBEACON_TEMP_LO];
 }
 
 void btm_setTemperature(int num,uint16_t temperature)
@@ -131,45 +164,45 @@ void btm_setTemperature(int num,uint16_t temperature)
 
     int oldtemp = btm_getTemperature(num);
 
-    tiltDB[num].advData[25] = (temperature & 0xFF00) >> 8;    
-    tiltDB[num].advData[26] = temperature & 0xFF;
+    tiltDB[num].advData[IBEACON_TEMP_HI] = (temperature & 0xFF00) >> 8;    
+    tiltDB[num].advData[IBEACON_TEMP_LO] = temperature & 0xFF;
     if(temperature != oldtemp)
         tiltDB[num].dirty = true;    
 }
 
-
 int btm_getGravity(int num)
 {
-    return (uint16_t)tiltDB[num].advData[27] << 8 | tiltDB[num].advData[28];
+    return (uint16_t)tiltDB[num].advData[IBEACON_GRAV_HI] << 8 | tiltDB[num].advData[IBEACON_GRAV_LO];
 }
 
 void btm_setGravity(int num,uint16_t gravity)
 {
+    // These if's cause the gravity to "wrap around" at 1200 and 900
     if(gravity>1200)
         gravity = 900;
     if(gravity <900)
         gravity = 1200;
 
     int oldgrav = btm_getGravity(num);
-    tiltDB[num].advData[27] = (uint8_t)((gravity & 0xFF00) >> 8);
-    tiltDB[num].advData[28] = (uint8_t)(gravity & 0xFF);
+    tiltDB[num].advData[IBEACON_GRAV_HI] = (uint8_t)((gravity & 0xFF00) >> 8);
+    tiltDB[num].advData[IBEACON_GRAV_LO] = (uint8_t)(gravity & 0xFF);
     if(oldgrav != gravity)
         tiltDB[num].dirty = true;
 }
 
 void btm_setTxPower(int num, int8_t txPower)
 {
-    tiltDB[num].advData[29] = txPower;
+    tiltDB[num].advData[IBEACON_TXPOWER] = txPower;
     tiltDB[num].dirty = true;
 }
 
 void btm_printTable()
 {
-    printf("\n# Color  S   Rate T  UpT Grav UpG TxP\n");
+    printf("\n# Color   S   Rate T  UpT Grav UpG TxP\n");
 
     for(int i=0;i<NUM_TILT;i++)
     {
-        printf("%d %6s %d %5d %3d %2d %4d %2d %3d\n",i,
+        printf("%d %6s  %d %5d %3d %2d %4d %2d %3d\n",i,
             tiltDB[i].colorName,tiltDB[i].slot,
             tiltDB[i].rate*BTM_QUEUE_RATE,
             btm_getTemperature(i),tiltDB[i].tempUpdate,
@@ -178,9 +211,16 @@ void btm_printTable()
     }
 }
 
+/* btm_processCmdQueue
+*
+*  This function is called by a timer every BTM_QUEUE_RATE ms (around 200ms)
+*  It processes commands from the GUI
+*  It also updates the adverting packets if they are being updated at a rate
+*
+*/
 void btm_processCmdQueue( wiced_timer_callback_arg_t cb_params )
 {
-    static int count =0;
+    static int count = 0; // This counts the numbers of times the callback has happend
 
     btm_cmdMsg_t msg;
     while(xQueueReceive(btm_cmdQueue,&msg,0) == pdTRUE)
@@ -206,8 +246,12 @@ void btm_processCmdQueue( wiced_timer_callback_arg_t cb_params )
         }
     }
     count = count + 1;
+
+    // This block of code updates the current values with the update rate
     for(int i=0;i<NUM_TILT;i++)
     {
+        // If the slot active
+        // and the update rate says that it is time
         if(tiltDB[i].slot && count % tiltDB[i].rate  == 0)
         {
             btm_setTemperature(i,btm_getTemperature(i) + tiltDB[i].tempUpdate);
@@ -239,34 +283,35 @@ wiced_result_t app_bt_management_callback(wiced_bt_management_evt_t event, wiced
     switch (event)
     {
         case BTM_ENABLED_EVT:
-
-            if (WICED_BT_SUCCESS == p_event_data->enabled.status)
-            {
-                printf("Started BT Stack Succesfully\n");
-                btm_cmdQueue = xQueueCreate(10,sizeof(btm_cmdMsg_t));
-                wiced_init_timer_ext(&btm_processDataTimer,btm_processCmdQueue,0,WICED_TRUE);
-                wiced_start_timer_ext(&btm_processDataTimer,BTM_QUEUE_RATE);
-            }
-            else
-            {
-            	printf("Error enabling BTM_ENABLED_EVENT\n");
-            }
-
-            break;
+            printf("Started BT Stack Succesfully\n");
+            btm_cmdQueue = xQueueCreate(10,sizeof(btm_cmdMsg_t));
+            wiced_init_timer_ext(&btm_processDataTimer,btm_processCmdQueue,0,WICED_TRUE);
+            wiced_start_timer_ext(&btm_processDataTimer,BTM_QUEUE_RATE);
+        break;
 
         case BTM_MULTI_ADVERT_RESP_EVENT: // Do nothing...
         break;
 
         default:
             printf("Unhandled Bluetooth Management Event: %s\n", btutil_getBTEventName( event));
-            break;
+        break;
     }
 
     return result;
 }
 
+/*********************************************************************************
+* 
+* These are publicly callable functions to cause actions by the bluetooth manager
+* These are called by the GUI
+*
+*********************************************************************************/
+
 void btm_printTableCmd()
 {
+    if(btm_cmdQueue == 0)
+        return;
+    
     btm_cmdMsg_t msg;
     msg.cmd =    BTM_CMD_PRINT_TABLE;
     xQueueSend(btm_cmdQueue,&msg,0);
@@ -274,6 +319,9 @@ void btm_printTableCmd()
 
 void btm_setDataCmd(int num,int temperature,int gravity,int txPower)
 {
+    if(btm_cmdQueue == 0)
+        return;
+
     btm_cmdMsg_t msg;
     msg.cmd =    BTM_CMD_SET_DATA;
     msg.num = num;
@@ -286,6 +334,8 @@ void btm_setDataCmd(int num,int temperature,int gravity,int txPower)
 
 void btm_updateDataCmd(int num,int rate ,int temperature,int gravity )
 {
+    if(btm_cmdQueue == 0)
+        return;
     btm_cmdMsg_t msg;
     msg.cmd =    BTM_CMD_SET_UPDATE;
     msg.num = num;
