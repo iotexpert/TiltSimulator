@@ -8,3 +8,5 @@ void btm_printTable();
 void btm_printTableCmd();
 void btm_setDataCmd(int num,int temperature,int gravity,int txPower);
 void btm_updateDataCmd(int num,int rate ,int temperature,int gravity );
+void btm_updateEnable(int num);
+void btm_updateDisable(int num);

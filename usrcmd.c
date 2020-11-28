@@ -61,6 +61,8 @@ static int usrcmd_list(int argc, char **argv);
 static int usrcmd_print(int argc, char **argv);
 static int usrcmd_set(int argc, char **argv);
 static int usrcmd_update(int argc, char **argv);
+static int usrcmd_enable(int argc, char **argv);
+static int usrcmd_disable(int argc, char **argv);
 
 typedef struct {
     char *cmd;
@@ -81,6 +83,9 @@ static const cmd_table_t cmdlist[] = {
     { "print", "Print table", usrcmd_print },
     { "set", "set num temperature gravity txpower", usrcmd_set },
     { "update", "update num temperature gravity", usrcmd_update },
+    { "enable", "enable num", usrcmd_enable},
+    { "disable", "disable num", usrcmd_disable },
+
 };
 
 
@@ -231,6 +236,28 @@ static int usrcmd_update(int argc, char **argv)
         sscanf(argv[4],"%d",&gravity);
 
         btm_updateDataCmd(num,rate,temperature,gravity);
+    }
+    return 0;
+}
+
+static int usrcmd_disable(int argc, char **argv)
+{
+    int num;
+    if(argc == 2)
+    {
+        sscanf(argv[1],"%d",&num);
+        btm_updateDisable(num);
+    }
+    return 0;
+}
+
+static int usrcmd_enable(int argc, char **argv)
+{
+    int num;
+    if(argc == 2)
+    {
+        sscanf(argv[1],"%d",&num);
+        btm_updateEnable(num);
     }
     return 0;
 }

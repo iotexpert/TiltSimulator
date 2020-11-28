@@ -28,7 +28,7 @@
 
 typedef struct  {
     char *colorName;    // The color string
-    int slot;           // Which Bluetooth ADV Slot this Tilt is using
+    bool enable;
     bool dirty;         // A flag to tell if there has been a change since the adv was last written
     int rate;           // rate in ms
     int tempUpdate;     // The update rate for temperature
@@ -45,14 +45,14 @@ typedef struct  {
 
 static tilt_t tiltDB [] =
 {
-    {"Red",    0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x10,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Green" , 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x20,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Black" , 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x30,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Purple", 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x40,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Orange", 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x50,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Blue"  , 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x60,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Yellow", 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x70,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
-    {"Pink"  , 0, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x80,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Red",    false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x10,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Green" , false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x20,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Black" , false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x30,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Purple", false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x40,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Orange", false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x50,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Blue"  , false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x60,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Yellow", false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x70,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
+    {"Pink"  , false, true, 0,0,0, {IBEACON_HEADER,0xA4,0x95,0xBB,0x80,0xC5,0xB1,0x4B,0x44,0xB5,0x12,0x13,0x70,0xF0,0x2D,0x74,0xDE, 0x00,0x00,0x00,0x00,0x00}},
 };
 #define NUM_TILT (sizeof(tiltDB)/sizeof(tilt_t))
 
@@ -71,6 +71,8 @@ typedef enum {
     BTM_CMD_SET_DATA,
     BTM_CMD_PRINT_TABLE,
     BTM_CMD_SET_UPDATE,
+    BTM_CMD_ENABLE,
+    BTM_CMD_DISABLE,
 } btm_cmd_t;
 
 typedef struct {
@@ -90,13 +92,9 @@ static wiced_timer_ext_t btm_processDataTimer;
 * These functions are used to interact with the Bluetooth Advertising Controller
 *
 *********************************************************************************/
-// btm_setAdvPacket
-//
-// This function updates what the advertising packets and the state of the BT controller:
-// It will loop through the table of iBeacons... then if they are in a slot & they are dirty
-// it will move them to the contoller and enable advertisements on that slot
+// btm_initialize
 
-void btm_setAdvPacket()
+void btm_initialize()
 {
     static wiced_bt_ble_multi_adv_params_t myParams = {
     .adv_int_min       = BTM_BLE_ADVERT_INTERVAL_MIN,
@@ -113,33 +111,32 @@ void btm_setAdvPacket()
 
     for(int i=0;i<NUM_TILT;i++)
     {
-        if(tiltDB[i].slot && tiltDB[i].dirty)
-        {   
-            tiltDB[i].dirty = false;
-            wiced_set_multi_advertisement_data(tiltDB[i].advData,sizeof(tiltDB[i].advData),tiltDB[i].slot);
-            wiced_set_multi_advertisement_params(tiltDB[i].slot,&myParams);
-            wiced_start_multi_advertisements( MULTI_ADVERT_START, tiltDB[i].slot );
-        }
+        wiced_set_multi_advertisement_data(tiltDB[i].advData,sizeof(tiltDB[i].advData),i+1);
+        wiced_set_multi_advertisement_params(i+1,&myParams);
+        wiced_start_multi_advertisements( MULTI_ADVERT_STOP, i+1);
     }
 }
 
-/* btm_activate
-*
-* This function will put the tilt in the database entry num
-* into the next available advertising slot
-*
-*/
-void btm_activate(int num)
+// btm_setAdvPacket
+//
+// This function updates what the advertising packets and the state of the BT controller:
+// It will loop through the table of iBeacons... then if they are in a slot & they are dirty
+// it will move them to the contoller and enable advertisements on that slot
+
+void btm_setAdvPacket()
 {
-    // Keep track of the number of currently active iBeacons
-    static int  btm_active=0;
-    
-    CY_ASSERT(num<NUM_TILT);
-    if(tiltDB[num].slot == 0) // Make sure that it is not already in a slow
+    for(int i=0;i<NUM_TILT;i++)
     {
-        btm_active += 1;
-        tiltDB[num].slot = btm_active;
-        tiltDB[num].dirty = true;
+        if(tiltDB[i].dirty)
+        {   
+            tiltDB[i].dirty = false;
+            wiced_set_multi_advertisement_data(tiltDB[i].advData,sizeof(tiltDB[i].advData),i+1);
+        
+            if(tiltDB[i].enable)
+                wiced_start_multi_advertisements( MULTI_ADVERT_START, i+1 );
+            else
+                wiced_start_multi_advertisements( MULTI_ADVERT_STOP, i+1 );
+        }
     }
 }
 
@@ -198,12 +195,12 @@ void btm_setTxPower(int num, int8_t txPower)
 
 void btm_printTable()
 {
-    printf("\n# Color   S   Rate T  UpT Grav UpG TxP\n");
+    printf("\n# Color   E   Rate T  UpT Grav UpG TxP\n");
 
     for(int i=0;i<NUM_TILT;i++)
     {
         printf("%d %6s  %d %5d %3d %2d %4d %2d %3d\n",i,
-            tiltDB[i].colorName,tiltDB[i].slot,
+            tiltDB[i].colorName,tiltDB[i].enable,
             tiltDB[i].rate*BTM_QUEUE_RATE,
             btm_getTemperature(i),tiltDB[i].tempUpdate,
             btm_getGravity(i),tiltDB[i].gravUpdate,
@@ -231,7 +228,6 @@ void btm_processCmdQueue( wiced_timer_callback_arg_t cb_params )
                 btm_setGravity(msg.num,msg.gravity);
                 btm_setTemperature(msg.num,msg.temperature);
                 btm_setTxPower(msg.num,msg.txPower);
-                btm_activate(msg.num);
             break;
 
             case BTM_CMD_PRINT_TABLE:
@@ -243,6 +239,15 @@ void btm_processCmdQueue( wiced_timer_callback_arg_t cb_params )
                 tiltDB[msg.num].gravUpdate = msg.gravity;
                 tiltDB[msg.num].rate = msg.txPower / BTM_QUEUE_RATE;
             break;
+
+            case BTM_CMD_ENABLE:
+                tiltDB[msg.num].enable = true;
+                wiced_start_multi_advertisements( MULTI_ADVERT_START, msg.num+1 );
+            break;
+            case BTM_CMD_DISABLE:
+                tiltDB[msg.num].enable = false;
+                wiced_start_multi_advertisements( MULTI_ADVERT_STOP, msg.num+1 );
+            break;
         }
     }
     count = count + 1;
@@ -252,7 +257,7 @@ void btm_processCmdQueue( wiced_timer_callback_arg_t cb_params )
     {
         // If the slot active
         // and the update rate says that it is time
-        if(tiltDB[i].slot && count % tiltDB[i].rate  == 0)
+        if(tiltDB[i].enable && count % tiltDB[i].rate  == 0)
         {
             btm_setTemperature(i,btm_getTemperature(i) + tiltDB[i].tempUpdate);
             btm_setGravity(i,btm_getGravity(i) + tiltDB[i].gravUpdate);
@@ -284,6 +289,7 @@ wiced_result_t app_bt_management_callback(wiced_bt_management_evt_t event, wiced
     {
         case BTM_ENABLED_EVT:
             printf("Started BT Stack Succesfully\n");
+            btm_initialize();
             btm_cmdQueue = xQueueCreate(10,sizeof(btm_cmdMsg_t));
             wiced_init_timer_ext(&btm_processDataTimer,btm_processCmdQueue,0,WICED_TRUE);
             wiced_start_timer_ext(&btm_processDataTimer,BTM_QUEUE_RATE);
@@ -345,3 +351,24 @@ void btm_updateDataCmd(int num,int rate ,int temperature,int gravity )
     xQueueSend(btm_cmdQueue,&msg,0);
 }
 
+void btm_updateEnable(int num)
+{
+    if(btm_cmdQueue == 0 || num<0 || num>=NUM_TILT)
+    {
+        return;
+    }
+    btm_cmdMsg_t msg;
+    msg.cmd =    BTM_CMD_ENABLE;
+    msg.num = num;
+    xQueueSend(btm_cmdQueue,&msg,0);
+}
+
+void btm_updateDisable(int num)
+{
+    if(btm_cmdQueue == 0 || num<0 || num>=NUM_TILT)
+        return;
+    btm_cmdMsg_t msg;
+    msg.cmd =    BTM_CMD_DISABLE;
+    msg.num = num;
+    xQueueSend(btm_cmdQueue,&msg,0);
+}
